@@ -1,0 +1,6 @@
+[package]
+name = "rustcp_server"
+version = "0.1.0"
+authors = ["Tera3939 <tera3939.dev@gmail.com>"]
+
+[dependencies]
