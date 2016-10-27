@@ -1,12 +1,15 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
+use std::rc::Rc;
 use std::sync::RwLock;
 use std::thread;
 
 #[macro_use]
 extern crate lazy_static;
 
+// HashMapにミュータブルなTcpStreamを格納したい or 格納したTcpStreamを使うときだけミュータブルにしたい
 lazy_static! {
    static ref IDS: RwLock<HashMap<&'static str, TcpStream>> = {
        let ids = HashMap::new();
@@ -74,7 +77,8 @@ fn main() {
         println!("Accepted!");
         match stream {
             // incoming()がOk返したらhandle_clientのスレッドを生成
-            Ok(mut stream) => {
+            Ok(stream) => {
+                let mut stream = stream;
                 thread_id += 1;
                 println!("{:p}", &stream);
                 thread::spawn(move|| {
