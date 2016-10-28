@@ -18,6 +18,8 @@ lazy_static! {
     };
 }
 
+// TODO: thread_idをthread_localで管理したほうが良い
+
 fn login(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8){
     /// USER_STREAMSにthreadIDとUser_name, TcpStreamを保存する
     let banner = b"Input your UserID: ";
@@ -50,19 +52,14 @@ fn logout(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8){
     stream.lock().unwrap().shutdown(Shutdown::Both);
 }
 
-fn check_exist_user(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8) {
-    {
-        let mut user_streams = USER_STREAMS.write().unwrap();
-        let is_exist = user_streams.any(|&x| x != thread_id);
-        if is_exist {
-            let reminder_message = b"prease login to Chataro.\r\n";
-            stream.lock().unwrap().write(reminder_message);
-            login(stream.clone(), thread_id);
-        }
-    }
+fn exist_user(thread_id: u8) -> bool{
+    /// ユーザーがログインしているとき真、ログインしていなければ偽を返す
+    let mut user_streams = USER_STREAMS.read().unwrap();
+    // ある要素がこのスレッドのthread_idと等しいならばそのユーザーはログインしている
+    user_streams.keys().any(|&x| x == thread_id)
 }
 
-fn send_all(message: &str){
+fn send_all(message: &str, thread_id: u8){
     /// IDSに格納されたすべてのTcpStreamにmessageをwriteする -> HashMap.valuesで値出してｳｪｲッ
     /// idの有無を確認してない場合はloginを呼ぶ
     println!("{}", message);
@@ -77,15 +74,18 @@ fn handle_client(mut stream: TcpStream, thread_id: u8) {
         match res {
             Ok(n) => {
                 if 0 < n {
-                    // 受信したデータを&str型に変換
                     let message = std::str::from_utf8(&buffer[0..n]).unwrap().split("\r\n").next().unwrap();
-                    // \r\nで分割してmethodを取り出す
                     match message {
                         "LOGIN" => login(stream.clone(), thread_id),
                         "LOGOUT" => logout(stream.clone(), thread_id),
                         _ => {
-                            check_exist_user(stream.clone(), thread_id);
-                            send_all(message);
+                            if exist_user(thread_id) {
+                                send_all(message);
+                            } else {
+                                let reminder_message = b"prease login to Chataro.\r\n";
+                                stream.lock().unwrap().write(reminder_message);
+                                login(stream.clone(), thread_id);
+                            }
                         },
                     }
                 }
