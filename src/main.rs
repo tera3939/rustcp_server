@@ -7,9 +7,6 @@ use std::thread;
 #[macro_use]
 extern crate lazy_static;
 
-
-
-
 lazy_static! {
     // 各スレッドのTcpStreamをスレッド間で共有する
     // thread_idと(name, TcpStream)を括り付ける
@@ -79,7 +76,9 @@ fn send_all(message: &str, thread_id: u8){
     let mut user_streams = USER_STREAMS.read().unwrap();
     let (ref sendbyname, _): (String, _) = *user_streams.get(&thread_id).unwrap();
     let send_message = sendbyname.split("\r\n").next().unwrap().to_string() + ": " + message;
-
+    for &(_, ref stream) in user_streams.values() {
+        stream.lock().unwrap().write(send_message.as_bytes());
+    }
     println!("{}", send_message);
 }
 
@@ -105,28 +104,6 @@ fn handle_client(mut stream: TcpStream, thread_id: u8) {
                 }
             },
         }
-        /*
-        match res {
-            Ok(n) => {
-                if 0 < n {
-                    let message = std::str::from_utf8(&buffer[0..n]).unwrap().split("\r\n").next().unwrap();
-                    match message {
-                        "LOGIN" => login(stream.clone(), thread_id),
-                        "LOGOUT" => logout(stream.clone(), thread_id),
-                        _ => {
-                            if exist_user(thread_id) {
-                                send_all(message, thread_id);
-                            } else {
-                                let reminder_message = b"prease login to Chataro.\r\n";
-                                stream.lock().unwrap().write(reminder_message);
-                                login(stream.clone(), thread_id);
-                            }
-                        },
-                    }
-                }
-            },
-            Err(why) => panic!("{:?}", why),
-        }*/
     }
 }
 
