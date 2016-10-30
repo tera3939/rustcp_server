@@ -9,7 +9,7 @@ extern crate lazy_static;
 
 lazy_static! {
     // 各スレッドのTcpStreamをスレッド間で共有する
-    // thread_idと(name, TcpStream)を括り付ける
+    // thread_idと(UserName, TcpStream)を括り付ける
     #[derive(Debug)]
     static ref USER_STREAMS: RwLock<HashMap<u8, (String, Arc<Mutex<TcpStream>>)>> = {
         let user_streams = HashMap::new();
@@ -27,8 +27,7 @@ fn read_stream(stream: Arc<Mutex<TcpStream>>) -> String {
         let _ = stream.lock().unwrap().read(&mut buffer).unwrap();
         let response = std::str::from_utf8(&buffer).unwrap();
         message.push_str(response);
-        println!("{:?}, {:?}", response, message);
-        response != "\n"    // TODO: これだと\nが残って悲惨なことになる
+        response != "\n"
     } {}
     message
 }
@@ -61,13 +60,13 @@ fn login(stream: Arc<Mutex<TcpStream>>, thread_id: u8){
 
 /// この関数を呼んだスレッドのTcpStreamをShutdownしてUserStreamsから削除する
 fn logout(stream: Arc<Mutex<TcpStream>>, thread_id: u8){
-    let logout_message = "-*-system_message::this user logouted-*-";
+    let logout_message = "-*-system_message::this user logouted-*-\r\n";
     send_all(logout_message, thread_id);
     {
         let mut user_streams = USER_STREAMS.write().unwrap();
         user_streams.remove(&thread_id);
     }
-    stream.lock().unwrap().shutdown(Shutdown::Both);
+    let _ = stream.lock().unwrap().shutdown(Shutdown::Both);
 }
 
 /// IDSに格納されたすべてのTcpStreamにmessageをwriteする -> HashMap.valuesで値出してｳｪｲッ
@@ -76,10 +75,11 @@ fn send_all(message: &str, thread_id: u8){
     let user_streams = USER_STREAMS.read().unwrap();
     let (ref sendbyname, _): (String, _) = *user_streams.get(&thread_id).unwrap();
     let send_message = sendbyname.split("\r\n").next().unwrap().to_string() + ": " + message;
+    // TODO: spmcで各スレッドに送信したい
     for &(_, ref stream) in user_streams.values() {
-        stream.lock().unwrap().write(send_message.as_bytes());
+        let _ = stream.lock().unwrap().write(send_message.as_bytes());
     }
-    println!("{}", send_message);
+    println!("send_message: {}", send_message);
 }
 
 /// クライアントから送られてきたデータを受信して、対応する関数を呼ぶ
@@ -98,7 +98,7 @@ fn handle_client(stream: TcpStream, thread_id: u8) {
                     send_all(message.as_str(), thread_id);
                 } else {
                     let reminder_message = b"-*-system_message::prease login to Chataro.-*-\r\n";
-                    stream.lock().unwrap().write(reminder_message);
+                    let _ = stream.lock().unwrap().write(reminder_message);
                     login(stream.clone(), thread_id);
                 }
             },
