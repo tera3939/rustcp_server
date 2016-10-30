@@ -89,8 +89,8 @@ fn handle_client(mut stream: TcpStream, thread_id: u8) {
         let mut message = read_stream(stream.clone());
         // let message = std::str::from_utf8(&buffer[0..n]).unwrap().split("\r\n").next().unwrap();
         match message.as_str() {
-            "LOGIN\r\n" || "Login\r\n" || "login\r\n" => login(stream.clone(), thread_id),
-            "LOGOUT\r\n" || "Logout\r\n" || "logout\r\n" => {
+            "LOGIN\r\n" | "Login\r\n" | "login\r\n" => login(stream.clone(), thread_id),
+            "LOGOUT\r\n" | "Logout\r\n" | "logout\r\n" => {
                 logout(stream.clone(), thread_id);
                 break;
             },
