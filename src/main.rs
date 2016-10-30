@@ -20,11 +20,11 @@ lazy_static! {
 // TODO: thread_idをthread_localで管理したほうが良い
 
 /// TcpStreamからの入力ストリームを結合しStringとして返す
-fn read_stream(mut stream: Arc<Mutex<TcpStream>>) -> String {
+fn read_stream(stream: Arc<Mutex<TcpStream>>) -> String {
     let mut message = String::new();
     while {
         let mut buffer = [0;1];
-        let n = stream.lock().unwrap().read(&mut buffer).unwrap();
+        let _ = stream.lock().unwrap().read(&mut buffer).unwrap();
         let response = std::str::from_utf8(&buffer).unwrap();
         message.push_str(response);
         println!("{:?}, {:?}", response, message);
@@ -35,13 +35,13 @@ fn read_stream(mut stream: Arc<Mutex<TcpStream>>) -> String {
 
 /// ユーザーがログインしているとき真、ログインしていなければ偽を返す
 fn exist_user(thread_id: u8) -> bool{
-    let mut user_streams = USER_STREAMS.read().unwrap();
+    let user_streams = USER_STREAMS.read().unwrap();
     // ある要素がこのスレッドのthread_idと等しいならばそのユーザーはログインしている
     user_streams.keys().any(|&x| x == thread_id)
 }
     
 /// USER_STREAMSにthreadIDとUser_name, TcpStreamを保存する
-fn login(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8){
+fn login(stream: Arc<Mutex<TcpStream>>, thread_id: u8){
     if exist_user(thread_id) {
         let logined_message = b"-*-system_message::you already login this chat!-*-\r\n";
         let _ = stream.lock().unwrap().write(logined_message);
@@ -60,7 +60,7 @@ fn login(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8){
 }
 
 /// この関数を呼んだスレッドのTcpStreamをShutdownしてUserStreamsから削除する
-fn logout(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8){
+fn logout(stream: Arc<Mutex<TcpStream>>, thread_id: u8){
     let logout_message = "-*-system_message::this user logouted-*-";
     send_all(logout_message, thread_id);
     {
@@ -73,7 +73,7 @@ fn logout(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8){
 /// IDSに格納されたすべてのTcpStreamにmessageをwriteする -> HashMap.valuesで値出してｳｪｲッ
 /// idの有無を確認してない場合はloginを呼ぶ
 fn send_all(message: &str, thread_id: u8){
-    let mut user_streams = USER_STREAMS.read().unwrap();
+    let user_streams = USER_STREAMS.read().unwrap();
     let (ref sendbyname, _): (String, _) = *user_streams.get(&thread_id).unwrap();
     let send_message = sendbyname.split("\r\n").next().unwrap().to_string() + ": " + message;
     for &(_, ref stream) in user_streams.values() {
