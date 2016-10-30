@@ -43,7 +43,7 @@ fn exist_user(thread_id: u8) -> bool{
 /// USER_STREAMSにthreadIDとUser_name, TcpStreamを保存する
 fn login(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8){
     if exist_user(thread_id) {
-        let logined_message = b"you already login this chat!\r\n";
+        let logined_message = b"-*-system_message::you already login this chat!-*-\r\n";
         let _ = stream.lock().unwrap().write(logined_message);
         return;
     }
@@ -61,7 +61,7 @@ fn login(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8){
 
 /// この関数を呼んだスレッドのTcpStreamをShutdownしてUserStreamsから削除する
 fn logout(mut stream: Arc<Mutex<TcpStream>>, thread_id: u8){
-    let logout_message = "-*-system_message::退室しました-*-";
+    let logout_message = "-*-system_message::this user logouted-*-";
     send_all(logout_message, thread_id);
     {
         let mut user_streams = USER_STREAMS.write().unwrap();
@@ -89,8 +89,8 @@ fn handle_client(mut stream: TcpStream, thread_id: u8) {
         let mut message = read_stream(stream.clone());
         // let message = std::str::from_utf8(&buffer[0..n]).unwrap().split("\r\n").next().unwrap();
         match message.as_str() {
-            "LOGIN\r\n" => login(stream.clone(), thread_id),
-            "LOGOUT\r\n" => {
+            "LOGIN\r\n" || "Login\r\n" || "login\r\n" => login(stream.clone(), thread_id),
+            "LOGOUT\r\n" || "Logout\r\n" || "logout\r\n" => {
                 logout(stream.clone(), thread_id);
                 break;
             },
@@ -98,7 +98,7 @@ fn handle_client(mut stream: TcpStream, thread_id: u8) {
                 if exist_user(thread_id) {
                     send_all(message.as_str(), thread_id);
                 } else {
-                    let reminder_message = b"prease login to Chataro.\r\n";
+                    let reminder_message = b"-*-system_message::prease login to Chataro.-*-\r\n";
                     stream.lock().unwrap().write(reminder_message);
                     login(stream.clone(), thread_id);
                 }
