@@ -83,11 +83,10 @@ fn send_all(message: &str, thread_id: u8){
 }
 
 /// クライアントから送られてきたデータを受信して、対応する関数を呼ぶ
-fn handle_client(mut stream: TcpStream, thread_id: u8) {
+fn handle_client(stream: TcpStream, thread_id: u8) {
     let stream = Arc::new(Mutex::new(stream));
     loop{
-        let mut message = read_stream(stream.clone());
-        // let message = std::str::from_utf8(&buffer[0..n]).unwrap().split("\r\n").next().unwrap();
+        let message = read_stream(stream.clone());
         match message.as_str() {
             "LOGIN\r\n" | "Login\r\n" | "login\r\n" => login(stream.clone(), thread_id),
             "LOGOUT\r\n" | "Logout\r\n" | "logout\r\n" => {
@@ -119,7 +118,7 @@ fn main() {
         match stream {
             // incoming()がOk返したらhandle_clientのスレッドを生成
             Ok(stream) => {
-                let mut stream = stream;
+                let stream = stream;
                 thread::spawn(move|| {
                     handle_client(stream, thread_id)
                 });
